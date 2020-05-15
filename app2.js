@@ -6,21 +6,30 @@
  * 
  */
 
- /* GLOBAL VARS */
+/* GLOBAL VARS */
 
 const workspace = document.getElementById("workspace");
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
-const chkShowCursorPosition = document.getElementById("show-cursor-pos");
+
+// Toolbar buttons
 const importImageBtn = document.getElementById("import-image");
 const addPointBtn = document.getElementById("add-point");
+const removePointsBtn = document.getElementById("remove-point");
 const resetPointsBtn = document.getElementById("reset-points");
 
+// Sidebar buttons
+const chkShowCursorPosition = document.getElementById("show-cursor-pos");
+const chkShowPointIds = document.getElementById("show-point-ids");
+
+let currentpointid = 0;
 let baseImage = null;   // Imported image placeholder
 let settings = {
-    showCursorPosition: chkShowCursorPosition.checked
+    showCursorPosition: chkShowCursorPosition.checked,
+    showPointIds: chkShowPointIds.checked
 }
 let addingPoint = false;
+let removingPoint = false;
 
 /* EVENT LISTENERS */
 
@@ -28,10 +37,27 @@ chkShowCursorPosition.addEventListener("change", e => {
     settings.showCursorPosition = e.target.checked;
 });
 
-importImageBtn.addEventListener("change", ()=>readUrl(importImageBtn), true);
+chkShowPointIds.addEventListener("change", e => {
+    settings.showPointIds = e.target.checked;
+})
+
+importImageBtn.addEventListener("change", () => readUrl(importImageBtn), true);
 
 addPointBtn.addEventListener("click", e => {
-    startAddingPoint();
+    if (addingPoint) {
+        stopAddingPoint();
+    } else {
+        startAddingPoint();
+
+    }
+});
+
+removePointsBtn.addEventListener("click", e => {
+    if (removingPoint) {
+        stopRemovingPoints();
+    } else {
+        startRemovingPoints();
+    }
 });
 
 resetPointsBtn.addEventListener("click", e => {
@@ -49,7 +75,7 @@ window.addEventListener("click", e => {
 
 canvas.width = workspace.clientWidth;
 canvas.height = workspace.clientHeight;
-canvas.style.background = "#fff"
+canvas.style.background = "#ddd"
 workspace.appendChild(canvas);
 
 const points = [];
@@ -68,16 +94,16 @@ class Point {
 // ---------------------------------------------------------------------
 
 const mouse = {
-    x : 0,
-    y : 0,
-    w : 0,
-    alt : false,
-    shift : false,
-    ctrl : false,
-    buttonLastRaw : 0, // user modified value
-    buttonRaw : 0,
-    over : false,
-    buttons : [1, 2, 4, 6, 5, 3], // masks for setting and clearing button raw bits;
+    x: 0,
+    y: 0,
+    w: 0,
+    alt: false,
+    shift: false,
+    ctrl: false,
+    buttonLastRaw: 0, // user modified value
+    buttonRaw: 0,
+    over: false,
+    buttons: [1, 2, 4, 6, 5, 3], // masks for setting and clearing button raw bits;
 };
 
 function mouseMove(event) {
@@ -92,7 +118,7 @@ function mouseMove(event) {
     mouse.ctrl = event.ctrlKey;
     if (event.type === "mousedown") {
         event.preventDefault()
-        mouse.buttonRaw |= mouse.buttons[event.which-1];
+        mouse.buttonRaw |= mouse.buttons[event.which - 1];
     } else if (event.type === "mouseup") {
         mouse.buttonRaw &= mouse.buttons[event.which + 2];
     } else if (event.type === "mouseout") {
@@ -104,7 +130,7 @@ function mouseMove(event) {
         event.preventDefault()
         mouse.w = event.wheelDelta;
     } else if (event.type === "DOMMouseScroll") { // FF you pedantic doffus
-       mouse.w = -event.detail;
+        mouse.w = -event.detail;
     }
 }
 
@@ -116,7 +142,7 @@ function setupMouse(e) {
     e.addEventListener('mouseover', mouseMove);
     e.addEventListener('mousewheel', mouseMove);
     e.addEventListener('DOMMouseScroll', mouseMove); // fire fox
-    
+
     e.addEventListener("contextmenu", function (e) {
         e.preventDefault();
     }, false);
@@ -127,49 +153,49 @@ setupMouse(canvas);
 // Real space, real, r (prefix) refers to the transformed canvas space.
 // c (prefix), chase is the value that chases a requiered value
 var displayTransform = {
-    x:0,
-    y:0,
-    ox:0,
-    oy:0,
-    scale:1,
-    rotate:0,
-    cx:0,  // chase values Hold the actual display
-    cy:0,
-    cox:0,
-    coy:0,
-    cscale:1,
-    crotate:0,
-    dx:0,  // deltat values
-    dy:0,
-    dox:0,
-    doy:0,
-    dscale:1,
-    drotate:0,
-    drag:0.25,  // drag for movements (default: 0.1, firm: 0.25)
-    accel:1.2, // acceleration (default: 0.7, snappy: 1.2)
-    matrix:[0,0,0,0,0,0], // main matrix
-    invMatrix:[0,0,0,0,0,0], // invers matrix;
-    mouseX:0,
-    mouseY:0,
-    ctx:ctx,
-    setTransform:function(){
+    x: 0,
+    y: 0,
+    ox: 0,
+    oy: 0,
+    scale: 1,
+    rotate: 0,
+    cx: 0,  // chase values Hold the actual display
+    cy: 0,
+    cox: 0,
+    coy: 0,
+    cscale: 1,
+    crotate: 0,
+    dx: 0,  // deltat values
+    dy: 0,
+    dox: 0,
+    doy: 0,
+    dscale: 1,
+    drotate: 0,
+    drag: 0.25,  // drag for movements (default: 0.1, firm: 0.25)
+    accel: 1.2, // acceleration (default: 0.7, snappy: 1.2)
+    matrix: [0, 0, 0, 0, 0, 0], // main matrix
+    invMatrix: [0, 0, 0, 0, 0, 0], // invers matrix;
+    mouseX: 0,
+    mouseY: 0,
+    ctx: ctx,
+    setTransform: function () {
         var m = this.matrix;
         var i = 0;
-        this.ctx.setTransform(m[i++],m[i++],m[i++],m[i++],m[i++],m[i++]);
+        this.ctx.setTransform(m[i++], m[i++], m[i++], m[i++], m[i++], m[i++]);
     },
-    setHome:function(){
-        this.ctx.setTransform(1,0,0,1,0,0);
-        
+    setHome: function () {
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
     },
-    update:function(){
+    update: function () {
         // smooth all movement out. drag and accel control how this moves
         // acceleration 
-        this.dx += (this.x-this.cx)*this.accel;
-        this.dy += (this.y-this.cy)*this.accel;
-        this.dox += (this.ox-this.cox)*this.accel;
-        this.doy += (this.oy-this.coy)*this.accel;
-        this.dscale += (this.scale-this.cscale)*this.accel;
-        this.drotate += (this.rotate-this.crotate)*this.accel;
+        this.dx += (this.x - this.cx) * this.accel;
+        this.dy += (this.y - this.cy) * this.accel;
+        this.dox += (this.ox - this.cox) * this.accel;
+        this.doy += (this.oy - this.coy) * this.accel;
+        this.dscale += (this.scale - this.cscale) * this.accel;
+        this.drotate += (this.rotate - this.crotate) * this.accel;
         // drag
         this.dx *= this.drag;
         this.dy *= this.drag;
@@ -184,63 +210,62 @@ var displayTransform = {
         this.coy += this.doy;
         this.cscale += this.dscale;
         this.crotate += this.drotate;
-        
+
         // create the display matrix
-        this.matrix[0] = Math.cos(this.crotate)*this.cscale;
-        this.matrix[1] = Math.sin(this.crotate)*this.cscale;
-        this.matrix[2] =  - this.matrix[1];
+        this.matrix[0] = Math.cos(this.crotate) * this.cscale;
+        this.matrix[1] = Math.sin(this.crotate) * this.cscale;
+        this.matrix[2] = - this.matrix[1];
         this.matrix[3] = this.matrix[0];
 
         // set the coords relative to the origin
-        this.matrix[4] = -(this.cx * this.matrix[0] + this.cy * this.matrix[2])+this.cox;
-        this.matrix[5] = -(this.cx * this.matrix[1] + this.cy * this.matrix[3])+this.coy;        
+        this.matrix[4] = -(this.cx * this.matrix[0] + this.cy * this.matrix[2]) + this.cox;
+        this.matrix[5] = -(this.cx * this.matrix[1] + this.cy * this.matrix[3]) + this.coy;
 
 
         // create invers matrix
         var det = (this.matrix[0] * this.matrix[3] - this.matrix[1] * this.matrix[2]);
         this.invMatrix[0] = this.matrix[3] / det;
-        this.invMatrix[1] =  - this.matrix[1] / det;
-        this.invMatrix[2] =  - this.matrix[2] / det;
+        this.invMatrix[1] = - this.matrix[1] / det;
+        this.invMatrix[2] = - this.matrix[2] / det;
         this.invMatrix[3] = this.matrix[0] / det;
-        
+
         // check for mouse. Do controls and get real position of mouse.
-        if(mouse !== undefined){  // if there is a mouse get the real cavas coordinates of the mouse
-            if(mouse.oldX !== undefined && (mouse.buttonRaw & 1)===1){ // check if panning (middle button)
-                var mdx = mouse.x-mouse.oldX; // get the mouse movement
-                var mdy = mouse.y-mouse.oldY;
+        if (mouse !== undefined) {  // if there is a mouse get the real cavas coordinates of the mouse
+            if (mouse.oldX !== undefined && (mouse.buttonRaw & 1) === 1) { // check if panning (middle button)
+                var mdx = mouse.x - mouse.oldX; // get the mouse movement
+                var mdy = mouse.y - mouse.oldY;
                 // get the movement in real space
                 var mrx = (mdx * this.invMatrix[0] + mdy * this.invMatrix[2]);
-                var mry = (mdx * this.invMatrix[1] + mdy * this.invMatrix[3]);   
+                var mry = (mdx * this.invMatrix[1] + mdy * this.invMatrix[3]);
                 this.x -= mrx;
                 this.y -= mry;
             }
             // do the zoom with mouse wheel
-            if(mouse.w !== undefined && mouse.w !== 0){
+            if (mouse.w !== undefined && mouse.w !== 0) {
                 this.ox = mouse.x;
                 this.oy = mouse.y;
                 this.x = this.mouseX;
                 this.y = this.mouseY;
                 /* Special note from answer */
-                // comment out the following is you change drag and accel
+                // comment out the following if you change drag and accel
                 // and the zoom does not feel right (lagging and not 
                 // zooming around the mouse 
-                
                 this.cox = mouse.x;
                 this.coy = mouse.y;
                 this.cx = this.mouseX;
                 this.cy = this.mouseY;
-                
-                if(mouse.w > 0){ // zoom in
+
+                if (mouse.w > 0) { // zoom in
                     this.scale *= 1.1;
                     mouse.w -= 20;
-                    if(mouse.w < 0){
+                    if (mouse.w < 0) {
                         mouse.w = 0;
                     }
                 }
-                if(mouse.w < 0){ // zoom out
-                    this.scale *= 1/1.1;
+                if (mouse.w < 0) { // zoom out
+                    this.scale *= 1 / 1.1;
                     mouse.w += 20;
-                    if(mouse.w > 0){
+                    if (mouse.w > 0) {
                         mouse.w = 0;
                     }
                 }
@@ -250,14 +275,14 @@ var displayTransform = {
             var screenX = (mouse.x - this.cox);
             var screenY = (mouse.y - this.coy);
             this.mouseX = this.cx + (screenX * this.invMatrix[0] + screenY * this.invMatrix[2]);
-            this.mouseY = this.cy + (screenX * this.invMatrix[1] + screenY * this.invMatrix[3]);            
+            this.mouseY = this.cy + (screenX * this.invMatrix[1] + screenY * this.invMatrix[3]);
             mouse.rx = this.mouseX;  // add the coordinates to the mouse. r is for real
             mouse.ry = this.mouseY;
             // save old mouse position
             mouse.oldX = mouse.x;
             mouse.oldY = mouse.y;
         }
-        
+
     }
 }
 
@@ -267,89 +292,173 @@ ctx.textAlign = "center";
 ctx.textBaseline = "middle";
 
 // timer for stuff
-var timer =0;
-function update(){
+var timer = 0;
+var mouseDown = false;
+let newPointAdded = false;
+let pointRemoved = false;
+let rmbHandled = false;
+function update() {
+    // Don't run if there's no image loaded
     if (baseImage === null) return;
 
-    timer += 1; // update timere
+    // Update the timer
+    timer += 1;
 
     // update the transform
     displayTransform.update();
 
     // set home transform to clear the screem
     displayTransform.setHome();
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // if the image loaded show it
-    if (baseImage !== null){
+    if (baseImage !== null) {
         displayTransform.setTransform();
-
         ctx.drawImage(baseImage, 0, 0);
-    }else{
+    } else {
         // waiting for image to load
         displayTransform.setTransform();
-        ctx.fillText("Loading image...",100,100);
-        
+        ctx.fillText("Loading image...", 100, 100);
     }
 
-    // draw points
+    if (mouse.buttonRaw === 0) {
+        mouseDown = false;
+        newPointAdded = false;
+        rmbHandled = true;
+        pointRemoved = false;
+    } else if (mouse.buttonRaw === 1 || mouse.buttonRaw === 4) {
+        mouseDown = true;
+
+        if (mouse.buttonRaw === 4) {
+            rmbHandled = false;
+        }
+    }
+
+    if (!points.length) {
+        removePointsBtn.disabled = true;
+    } else {
+        removePointsBtn.disabled = false;
+    }
+
+
+    // draw added points
     points.forEach(point => {
         ctx.fillStyle = point.color;
         ctx.fillRect(point.x, point.y, point.size, point.size);
+
+        // Check to see if mouse is inside point
         if (mouse.rx <= point.x + point.size / 2 + 10 &&
             mouse.rx >= point.x - point.size / 2 + 10 &&
             mouse.ry <= point.y + point.size / 2 + 10 &&
             mouse.ry >= point.y - point.size / 2 + 10) {
+
+            // Highlight the point
             ctx.fillStyle = "orange";
             ctx.fillRect(point.x, point.y, point.size, point.size);
+            // Draw the point id above it
             ctx.fillStyle = "#000";
-            ctx.fillText(point.id, point.x - 4, point.y - 4);
-    
-        }else {
+            // ctx.fillText(point.id, point.x - 4, point.y - 4);
+            ctx.fillText(`${point.id}: ${Math.floor(point.x)}, ${Math.floor(point.y)}`, point.x - 4, point.y - 4);
+
+        } else {
+            // Draw the point
             ctx.fillStyle = point.color;
             ctx.fillRect(point.x, point.y, point.size, point.size);
         }
 
-
-
-    })
+        // Setting show point ids
+        if (settings.showPointIds) {
+            // Cursor position text
+            ctx.font = `${14 / displayTransform.scale}px verdana`;
+            ctx.fillStyle = "#000";
+            ctx.fillText(point.id, point.x + (point.size / 2), (point.y + point.size / 2));
+        }
+    });
 
     if (addingPoint) {
         ctx.fillStyle = "green";
-        ctx.fillRect(mouse.rx - 10, mouse.ry-10, 20, 20);
-
+        ctx.fillRect(mouse.rx - 10, mouse.ry - 10, 20, 20);
     }
 
-    if (mouse.buttonRaw === 1 && addingPoint) {
-        log("test")
-        const newPoint = new Point(points.length + 1, mouse.rx-10, mouse.ry-10, 20, "#FF0000");
+    if (removingPoint && !pointRemoved) {
+        if (mouse.buttonRaw === 1) {
+            const clickedPoint = points.find(point => {
+                if (Math.abs(point.x - mouse.x) < point.size / 2 && Math.abs(point.y - mouse.y) < point.size / 2) {
+                    return point;
+                }
+            });
+
+            if (clickedPoint !== undefined && clickedPoint !== null) {
+                log(clickedPoint.id)
+
+                let pointToRemove = points.filter(point => point.id === clickedPoint.id)[0];
+
+                points.splice(points.indexOf(pointToRemove), 1);
+
+                ctx.clearRect(clickedPoint.x, clickedPoint.y, clickedPoint.size, clickedPoint.size);
+
+            }
+
+            pointRemoved = true;
+
+        }
+    }
+
+    if (mouse.buttonRaw === 1 && addingPoint && !newPointAdded) {
+        const newPoint = new Point(currentpointid, mouse.rx - 10, mouse.ry - 10, 20, "#FF0000");
         points.push(newPoint);
-        log(newPoint)
+        newPointAdded = true;
+        currentpointid++;
     }
 
-    if (mouse.buttonRaw === 4 && !addingPoint){ // right click to return to homw
-         displayTransform.x = 0;
-         displayTransform.y = 0;
-         displayTransform.scale = 1;
-         displayTransform.rotate = 0;
-         displayTransform.ox = 0;
-         displayTransform.oy = 0;
-     } else if (mouse.buttonRaw === 4 && addingPoint) {
-         stopAddingPoint();
-     }
 
-     if (settings.showCursorPosition) {
+    // if (mouse.buttonRaw === 4 && !addingPoint && !exitingPointAddMode) { // right click to return to homw
+    //     home();
+    // } else if (mouse.buttonRaw === 4 && addingPoint) {
+    //     stopAddingPoint();
+    // }
+
+    if (mouse.buttonRaw === 4) {
+
+        if (addingPoint && !rmbHandled) {
+            stopAddingPoint();
+            rmbHandled = true;
+        }
+
+        if (removingPoint && !rmbHandled) {
+            stopRemovingPoints();
+        }
+
+        // if (!rmbHandled) {
+        //     home();
+        //     rmbHandled = true;
+        // }
+
+    }
+
+
+    if (settings.showCursorPosition) {
         // Cursor position background
         ctx.fillStyle = "#00000079";
-        ctx.fillRect(mouse.rx - 50/displayTransform.scale, mouse.ry + 21 / displayTransform.scale, 100 / displayTransform.scale, 16 / displayTransform.scale);
-        
+        ctx.fillRect(mouse.rx - 50 / displayTransform.scale, mouse.ry + 21 / displayTransform.scale, 100 / displayTransform.scale, 16 / displayTransform.scale);
+
         // Cursor position text
         ctx.font = `${14 / displayTransform.scale}px verdana`;
         ctx.fillStyle = "#EEE";
         ctx.fillText(`X:${Math.floor(mouse.rx)}, Y:${Math.floor(mouse.ry)}`, mouse.rx, mouse.ry + 30 / displayTransform.scale);
     }
+
     // reaquest next frame
     requestAnimationFrame(update);
+
+    function home() {
+        displayTransform.x = 0;
+        displayTransform.y = 0;
+        displayTransform.scale = 0.33;
+        displayTransform.rotate = 0;
+        displayTransform.ox = 0;
+        displayTransform.oy = 0;
+    }
 }
 
 function startAddingPoint() {
@@ -357,7 +466,6 @@ function startAddingPoint() {
     addPointBtn.style.background = "green";
     addPointBtn.style.color = "#fff";
     resetPointsBtn.disabled = true;
-
 }
 
 function stopAddingPoint() {
@@ -365,9 +473,23 @@ function stopAddingPoint() {
     addPointBtn.style.background = "#eee";
     addPointBtn.style.color = "#666";
     resetPointsBtn.disabled = false;
-
 }
 
+function startRemovingPoints() {
+    // start removing points
+    removingPoint = true;
+    removePointsBtn.style.background = "red";
+    removePointsBtn.style.color = "#fff";
+    resetPointsBtn.disabled = true;
+}
+
+function stopRemovingPoints() {
+    // stop removing points
+    removingPoint = false;
+    removePointsBtn.style.background = "#eee";
+    removePointsBtn.style.color = "#666";
+    resetPointsBtn.disabled = false;
+}
 
 // ---------------------------------------------------------------------
 
@@ -389,16 +511,17 @@ function readUrl(fileTypeInput) {
     const file = fileTypeInput.files[0];
     const reader = new FileReader();
 
-    reader.onloadend = function() {
+    reader.onloadend = function () {
         baseImage = new Image();
         baseImage.src = reader.result;
-        baseImage.onload = function() {
+        baseImage.onload = function () {
             // enable the toolbar buttons
             addPointBtn.disabled = false;
             resetPointsBtn.disabled = false;
+            removePointsBtn.disabled = false;
 
             // Start panning and zooming
-            update(); 
+            update();
         }
     }
 

@@ -12,7 +12,8 @@
         <div id="workspace">
             <div id="workspace-toolbar">
                 <input type="file" id="import-image" class="workspace-toolbar-btn"></input>
-                <button id="add-point" class="workspace-toolbar-btn" disabled>Add Point</button>
+                <button id="add-points" class="workspace-toolbar-btn" disabled>Add Points</button>
+                <button id="remove-points" class="workspace-toolbar-btn" disabled>Remove points</button>
                 <button id="reset-points" class="workspace-toolbar-btn" disabled>Reset Points</button>
             </div>
             <!-- Keep empty, canvas element will be added by js -->
@@ -22,8 +23,12 @@
             <h3>Editor</h3>
             <br/>
             <div>
-                <input type="checkbox" name="show-cursor-pos" id="show-cursor-pos" checked="true">
+                <input type="checkbox" name="show-cursor-pos" id="show-cursor-pos">
                 <label for="show-cursor-pos">Show position below cursor</label>
+            </div>
+            <div>
+                <input type="checkbox" name="show-point-ids" id="show-point-ids">
+                <label for="show-point-ids">Show point ids</label>
             </div>
 
             <div class="filling-spacer"></div>
@@ -38,6 +43,6 @@
 
     </div>
 
-    <script src="app2.js"></script>
+    <script src="/assets/js/app.js"></script>
 </body>
 </html>
