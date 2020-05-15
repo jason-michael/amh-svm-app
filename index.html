@@ -12,14 +12,28 @@
         <div id="workspace">
             <div id="workspace-toolbar">
                 <input type="file" id="import-image" class="workspace-toolbar-btn"></input>
-                <button class="workspace-toolbar-btn">Add Point</button>
+                <button id="add-point" class="workspace-toolbar-btn" disabled>Add Point</button>
+                <button id="reset-points" class="workspace-toolbar-btn" disabled>Reset Points</button>
             </div>
             <!-- Keep empty, canvas element will be added by js -->
         </div>
 
-        <div class="sidebar">
-            <input type="checkbox" name="show-cursor-pos" id="show-cursor-pos">
-            <label for="show-cursor-pos">Show cursor position</label>
+        <div id="sidebar">
+            <h3>Editor</h3>
+            <br/>
+            <div>
+                <input type="checkbox" name="show-cursor-pos" id="show-cursor-pos" checked="true">
+                <label for="show-cursor-pos">Show position below cursor</label>
+            </div>
+
+            <div class="filling-spacer"></div>
+            <hr>
+            <br>
+            <ul>
+                <li>Left-click to pan</li>
+                <li>Scroll to zoom</li>
+                <li>Right-click to reset view</li>
+            </ul>
         </div>
 
     </div>

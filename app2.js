@@ -1,42 +1,69 @@
 /**
- * Notes
- * ~~~
+ * Resources
+ * 
  * Pan & Zoom canvas:
  * https://stackoverflow.com/questions/33925012/how-to-pan-the-canvas
- * ~~~
  * 
  */
 
-// Get the workspace element
-const workspace = document.getElementById("workspace");
+ /* GLOBAL VARS */
 
-// Create the main canvas element
-// ~
-// We create the canvas element here instead of in the html
-// so the VS Code's Intellisense works with canvas and context.
-// ~
+const workspace = document.getElementById("workspace");
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
-
-// Add the canvas to the workspace
-workspace.appendChild(canvas);
-
-// Canvas setup
-canvas.width = workspace.clientWidth;
-canvas.height = workspace.clientHeight;
-canvas.style.background = "#fff"
-
-// Canvas image placeholder
-let baseImage;
-
 const chkShowCursorPosition = document.getElementById("show-cursor-pos");
+const importImageBtn = document.getElementById("import-image");
+const addPointBtn = document.getElementById("add-point");
+const resetPointsBtn = document.getElementById("reset-points");
+
+let baseImage = null;   // Imported image placeholder
+let settings = {
+    showCursorPosition: chkShowCursorPosition.checked
+}
+let addingPoint = false;
+
+/* EVENT LISTENERS */
+
 chkShowCursorPosition.addEventListener("change", e => {
     settings.showCursorPosition = e.target.checked;
 });
 
-let settings = {
-    showCursorPosition: false
+importImageBtn.addEventListener("change", ()=>readUrl(importImageBtn), true);
+
+addPointBtn.addEventListener("click", e => {
+    startAddingPoint();
+});
+
+resetPointsBtn.addEventListener("click", e => {
+    let yes = confirm("Are you sure you want to remove all points?");
+    if (yes) {
+        points.length = 0;
+    }
+})
+
+window.addEventListener("click", e => {
+})
+
+
+/* SETUP */
+
+canvas.width = workspace.clientWidth;
+canvas.height = workspace.clientHeight;
+canvas.style.background = "#fff"
+workspace.appendChild(canvas);
+
+const points = [];
+
+class Point {
+    constructor(id, x, y, size, color) {
+        this.id = id;
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.color = color;
+    }
 }
+
 
 // ---------------------------------------------------------------------
 
@@ -118,8 +145,8 @@ var displayTransform = {
     doy:0,
     dscale:1,
     drotate:0,
-    drag:0.1,  // drag for movements
-    accel:0.7, // acceleration
+    drag:0.25,  // drag for movements (default: 0.1, firm: 0.25)
+    accel:1.2, // acceleration (default: 0.7, snappy: 1.2)
     matrix:[0,0,0,0,0,0], // main matrix
     invMatrix:[0,0,0,0,0,0], // invers matrix;
     mouseX:0,
@@ -197,12 +224,12 @@ var displayTransform = {
                 // comment out the following is you change drag and accel
                 // and the zoom does not feel right (lagging and not 
                 // zooming around the mouse 
-                /*
+                
                 this.cox = mouse.x;
                 this.coy = mouse.y;
                 this.cx = this.mouseX;
                 this.cy = this.mouseY;
-                */
+                
                 if(mouse.w > 0){ // zoom in
                     this.scale *= 1.1;
                     mouse.w -= 20;
@@ -233,78 +260,117 @@ var displayTransform = {
         
     }
 }
-// image to show
-var img = new Image();
-img.src = "https://upload.wikimedia.org/wikipedia/commons/e/e5/Fiat_500_in_Emilia-Romagna.jpg"
+
 // set up font
 ctx.font = "14px verdana";
 ctx.textAlign = "center";
 ctx.textBaseline = "middle";
+
 // timer for stuff
 var timer =0;
 function update(){
     if (baseImage === null) return;
 
-
     timer += 1; // update timere
+
     // update the transform
     displayTransform.update();
+
     // set home transform to clear the screem
     displayTransform.setHome();
     ctx.clearRect(0,0,canvas.width,canvas.height);
+
     // if the image loaded show it
-    if(baseImage !== null){
+    if (baseImage !== null){
         displayTransform.setTransform();
-        ctx.drawImage(baseImage,0,0);
-        ctx.fillStyle = "black";
-        if (settings.showCursorPosition) {
-            ctx.fillText(`X:${Math.floor(mouse.rx)}, Y:${Math.floor(mouse.ry)}`, mouse.rx, mouse.ry + 30);
-        }
-        // if(Math.floor(timer/100)%2 === 0){
-        //     ctx.fillText("Left but to pan",mouse.rx,mouse.ry);
-        // }else{
-        //     ctx.fillText("Wheel to zoom",mouse.rx,mouse.ry);
-        // }
+
+        ctx.drawImage(baseImage, 0, 0);
     }else{
         // waiting for image to load
         displayTransform.setTransform();
         ctx.fillText("Loading image...",100,100);
         
     }
-    if(mouse.buttonRaw === 4){ // right click to return to homw
+
+    // draw points
+    points.forEach(point => {
+        ctx.fillStyle = point.color;
+        ctx.fillRect(point.x, point.y, point.size, point.size);
+        if (mouse.rx <= point.x + point.size / 2 + 10 &&
+            mouse.rx >= point.x - point.size / 2 + 10 &&
+            mouse.ry <= point.y + point.size / 2 + 10 &&
+            mouse.ry >= point.y - point.size / 2 + 10) {
+            ctx.fillStyle = "orange";
+            ctx.fillRect(point.x, point.y, point.size, point.size);
+            ctx.fillStyle = "#000";
+            ctx.fillText(point.id, point.x - 4, point.y - 4);
+    
+        }else {
+            ctx.fillStyle = point.color;
+            ctx.fillRect(point.x, point.y, point.size, point.size);
+        }
+
+
+
+    })
+
+    if (addingPoint) {
+        ctx.fillStyle = "green";
+        ctx.fillRect(mouse.rx - 10, mouse.ry-10, 20, 20);
+
+    }
+
+    if (mouse.buttonRaw === 1 && addingPoint) {
+        log("test")
+        const newPoint = new Point(points.length + 1, mouse.rx-10, mouse.ry-10, 20, "#FF0000");
+        points.push(newPoint);
+        log(newPoint)
+    }
+
+    if (mouse.buttonRaw === 4 && !addingPoint){ // right click to return to homw
          displayTransform.x = 0;
          displayTransform.y = 0;
          displayTransform.scale = 1;
          displayTransform.rotate = 0;
          displayTransform.ox = 0;
          displayTransform.oy = 0;
+     } else if (mouse.buttonRaw === 4 && addingPoint) {
+         stopAddingPoint();
      }
+
+     if (settings.showCursorPosition) {
+        // Cursor position background
+        ctx.fillStyle = "#00000079";
+        ctx.fillRect(mouse.rx - 50/displayTransform.scale, mouse.ry + 21 / displayTransform.scale, 100 / displayTransform.scale, 16 / displayTransform.scale);
+        
+        // Cursor position text
+        ctx.font = `${14 / displayTransform.scale}px verdana`;
+        ctx.fillStyle = "#EEE";
+        ctx.fillText(`X:${Math.floor(mouse.rx)}, Y:${Math.floor(mouse.ry)}`, mouse.rx, mouse.ry + 30 / displayTransform.scale);
+    }
     // reaquest next frame
     requestAnimationFrame(update);
 }
 
+function startAddingPoint() {
+    addingPoint = true;
+    addPointBtn.style.background = "green";
+    addPointBtn.style.color = "#fff";
+    resetPointsBtn.disabled = true;
+
+}
+
+function stopAddingPoint() {
+    addingPoint = false;
+    addPointBtn.style.background = "#eee";
+    addPointBtn.style.color = "#666";
+    resetPointsBtn.disabled = false;
+
+}
+
+
 // ---------------------------------------------------------------------
 
-// Workspace Toolbar setup
-const importImageBtn = document.getElementById("import-image");
-importImageBtn.addEventListener("change", readUrl, true);
-function readUrl() {
-    const file = importImageBtn.files[0];
-    const reader = new FileReader();
-    reader.onloadend = function() {
-        // canvas.style.backgroundImage = "url(" + reader.result + ")";
-        baseImage = new Image();
-        baseImage.src = reader.result;
-        baseImage.onload = function() {
-            update(); // start panning and zooming
-        }
-    }
-    if (file) {
-        reader.readAsDataURL(file);
-    } else {
-        // TODO
-    }
-}
 
 /* UTILS */
 
@@ -316,4 +382,29 @@ function readUrl() {
  */
 function log(msg, ...args) {
     console.log(msg, ...args);
+}
+
+
+function readUrl(fileTypeInput) {
+    const file = fileTypeInput.files[0];
+    const reader = new FileReader();
+
+    reader.onloadend = function() {
+        baseImage = new Image();
+        baseImage.src = reader.result;
+        baseImage.onload = function() {
+            // enable the toolbar buttons
+            addPointBtn.disabled = false;
+            resetPointsBtn.disabled = false;
+
+            // Start panning and zooming
+            update(); 
+        }
+    }
+
+    if (file) {
+        reader.readAsDataURL(file);
+    } else {
+        // TODO
+    }
 }
