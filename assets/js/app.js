@@ -373,7 +373,18 @@ function startRemovingPoints() {
 //-----------------------------------------------------------------------------
 /* Sidebar setup */
 const sidebar = {
-
+    selection: {
+        labelID: document.getElementById("label-id"),
+        inputName: document.getElementById("input-name"),
+        inputHardwareID: document.getElementById("input-hardware-id"),
+        input: {
+            x: document.getElementById("input-x"),
+            y: document.getElementById("input-y"),
+            z: document.getElementById("input-z")
+        },
+        inputColor: document.getElementById("input-color"),
+        btnColorPicker: document.getElementById("btn-color-picker")
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -412,6 +423,22 @@ function update() {
                     });
                     break;
                 case EDITOR_MODE.IDLE:
+                    editor.points.forEach(point => {
+
+                        if (isMouseOnPoint(point)) {
+                            const pointToSelect = editor.points.filter(p => p.id === point.id)[0];
+                            const p = pointToSelect;
+                            sidebar.selection.labelID.textContent = p.id;
+
+                            // Highlight point
+                            editor.ctx.fillStyle = "gold";
+                            editor.ctx.fillRect(p.x, p.y, p.size, p.size);
+                        } else {
+                            // Clear sidebar selection
+                            sidebar.selection.labelID.textContent = "";
+                        }
+
+                    })
                     break;
                 default:
             }

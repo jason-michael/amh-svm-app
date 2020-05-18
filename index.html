@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AMH SVM App</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="content">
 
@@ -20,8 +22,48 @@
         </div>
 
         <div id="sidebar">
+            <h3>Selection</h3>
+            <br />
+            <div class="control">
+                <p class="control-label">ID</p>
+                <p id="label-id" class="control-value locked">Example</p>
+            </div>
+            <div class="control">
+                <p class="control-label">Name</p>
+                <input id="input-name" class="control-value" type="text" />
+            </div>
+            <div class="control">
+                <p class="control-label">Hardware ID</p>
+                <input id="input-hardware-id" class="control-value" type="text" />
+            </div>
+            <div class="control">
+                <p class="control-label">Position</p>
+                <div class="control-label-sublabel">
+                    <div>
+                        <input type="number" id="input-x" />
+                        <p>X</p>
+                    </div>
+                    <div>
+                        <input type="number" id="input-y" />
+                        <p>Y</p>
+                    </div>
+                    <div>
+                        <input type="number" id="input-z" />
+                        <p>Z</p>
+                    </div>
+                </div>
+            </div>
+            <div class="control">
+                <p class="control-label">Color</p>
+                <div class="control-label-sublabel">
+                        <input id="input-color" class="control-value" type="text" />
+                        <button id="btn-color-picker">...</button>
+                    </div>
+            </div>
+            <br><br>
+
             <h3>Editor</h3>
-            <br/>
+            <br />
             <div>
                 <input type="checkbox" name="show-cursor-pos" id="show-cursor-pos">
                 <label for="show-cursor-pos">Show position below cursor</label>
@@ -45,4 +87,5 @@
 
     <script src="/assets/js/app.js"></script>
 </body>
+
 </html>
